@@ -258,7 +258,7 @@
 <script>  
 // Fallback and dynamic trial handling
 const FALLBACK_TRIALS_PER_BLOCK = 16;
-const BLOCK_ORDER=["tempo","pitch"];
+const BLOCK_ORDER=["pitch","tempo"];
 const BLOCK_FILES = { tempo: "tempo_trials.csv", pitch: "pitch_trials.csv" };
 const ANIMALS_PER_BLOCK = 3;
 const REAL_BLOCK_ANIMAL_TRIALS = {
@@ -366,6 +366,7 @@ async function postResponseToServer(entry) {
 }
 
 let pitchPracticeCompleted = false;
+let tempoPracticeCompleted = false;
 
 let blocks={tempo:[],pitch:[]};
 let currentBlockIndex=0;
@@ -904,11 +905,16 @@ function showNarrationScreen() {
     } catch (err) {
       console.warn("Audio play failed:", err);
     }
-    audio.onended = () => setTimeout(showFastIntro, 1500);
+    audio.onended = () => setTimeout(runPitchDemo, 1500);
   });
 }
 
 /* --------------------- TEMPO PRACTICE FLOW ------------------------------------------------------------------------------------------------------------------------------- */
+
+function startTempoPracticeFlow() {
+  tempoPracticeCompleted = false;
+  showFastIntro();
+}
 
 function showFastIntro() {
   updateScreen(`
@@ -1013,12 +1019,14 @@ function runTempoPractice() {
 
   function nextPractice() {
     responseSubmitted = false; // Reset for each practice trial
-    if (i >= practiceTrials.length) {
-      currentBlockIndex = 0; // set tempo block
-      trialCounter = 1;
-      showRealTrialsIntro();
-      return;
-    }
+      if (i >= practiceTrials.length) {
+        const tempoIndex = BLOCK_ORDER.indexOf("tempo");
+        currentBlockIndex = tempoIndex >= 0 ? tempoIndex : 0; // set tempo block
+        tempoPracticeCompleted = true;
+        trialCounter = 1;
+        showRealTrialsIntro();
+        return;
+      }
     const trial = practiceTrials[i];
     const proceed = () => {
       i++;
@@ -1447,19 +1455,19 @@ function showPitchInstructions() {
 
     const audio = document.getElementById("pitchInstructions");
     audio.play().then(() => {
-      audio.onended = () => setTimeout(() => {
+        audio.onended = () => setTimeout(() => {
+          pitchPracticeCompleted = true;
+          currentBlockIndex = BLOCK_ORDER.indexOf("pitch");
+          trialCounter = 1;
+          startRealTrials();
+        }, 1000);
+      }).catch(err => {
+        console.warn("Autoplay issue:", err);
         pitchPracticeCompleted = true;
-        currentBlockIndex = 1;
+        currentBlockIndex = BLOCK_ORDER.indexOf("pitch");
         trialCounter = 1;
         startRealTrials();
-      }, 1000);
-    }).catch(err => {
-      console.warn("Autoplay issue:", err);
-      pitchPracticeCompleted = true;
-      currentBlockIndex = 1;
-      trialCounter = 1;
-      startRealTrials();
-    });
+      });
   }, 1500);
 }
 
@@ -1896,6 +1904,8 @@ function handleResponse(choice) {
         showParty();
       } else if (BLOCK_ORDER[currentBlockIndex] === "pitch" && !pitchPracticeCompleted) {
         runPitchDemo();
+      } else if (BLOCK_ORDER[currentBlockIndex] === "tempo" && !tempoPracticeCompleted) {
+        startTempoPracticeFlow();
       } else {
         rebuildBaseHTML();
         updatePlayButton();
@@ -2181,6 +2191,7 @@ function runScreenCleanup() {
 </script>
 </body>
 </html>
+
 
 
 
